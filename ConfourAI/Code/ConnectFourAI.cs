@@ -81,8 +81,75 @@ namespace ConfourAI.Code
                 }
                 return minEval;
             }
+
         }
+        private int EvaluateBoard()
+        {
+            int score = 0;
+
+            // Example: Scoring based on consecutive discs in rows, columns, and diagonals
+            // You can assign different weights for 2, 3, or 4-in-a-line scenarios.
+            // For instance: 3-in-a-line is more valuable than 2-in-a-line.
+
+            for (int row = 0; row < ConnectFourBoard.Rows; row++)
+            {
+                for (int col = 0; col < ConnectFourBoard.Columns; col++)
+                {
+                    if (board[row, col] != 0) // If the cell is not empty
+                    {
+                        // Check horizontally
+                        if (col + 3 < ConnectFourBoard.Columns)
+                        {
+                            score += EvaluateLine(row, col, 0, 1, board[row, col]);
+                        }
+                        // Check vertically (if applicable)
+                        if (row + 3 < ConnectFourBoard.Rows)
+                        {
+                            score += EvaluateLine(row, col, 1, 0, board[row, col]);
+                        }
+                        // Check diagonally (down-right and up-right)
+                        if (row + 3 < ConnectFourBoard.Rows && col + 3 < ConnectFourBoard.Columns)
+                        {
+                            score += EvaluateLine(row, col, 1, 1, board[row, col]);
+                        }
+                        if (row - 3 >= 0 && col + 3 < ConnectFourBoard.Columns)
+                        {
+                            score += EvaluateLine(row, col, -1, 1, board[row, col]);
+                        }
+                    }
+                }
+            }
+
+            return score;
+        }
+
+        private int EvaluateLine(int row, int col, int deltaRow, int deltaCol, int player)
+        {
+
+            int score = 0;
+            int consecutive = 0;
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (board[row + i * deltaRow, col + i * deltaCol] == player)
+                {
+                    consecutive++;
+                }
+                else if (board[row + i * deltaRow, col + i * deltaCol] != 0)
+                {
+                    consecutive = 0;
+                    break;
+                }
+            }
+
+            if (consecutive > 0)
+            {
+                score = (int)Math.Pow(10, consecutive - 1); // Example: 10 points for 2-in-a-line, 100 for 3-in-a-line
+            }
+
+            return player == 2 ? score : -score; // AI is player 2; invert score if it's the player's line
+        }
+
     }
 }
-
 
