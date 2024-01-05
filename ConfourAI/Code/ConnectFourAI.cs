@@ -1,155 +1,144 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ConfourAI.Code
 {
     public class ConnectFourAI
     {
-        private ConnectFourBoard board;
-        private int maxDepth;
+        private ConnectFourBoard gameBoard;
+        private int searchDepth;
 
-        public ConnectFourAI(ConnectFourBoard board, int maxDepth = 7)
+        // Constructor: Initializes the AI with a game board and search depth for Minimax
+        public ConnectFourAI(ConnectFourBoard gameBoard, int searchDepth = 7)
         {
-            this.board = board;
-            this.maxDepth = maxDepth;
+            this.gameBoard = gameBoard;
+            this.searchDepth = searchDepth;
         }
 
-        public int FindBestMove()
+        // Selects the best move for the AI by evaluating all possible moves
+        public int SelectOptimalMove()
         {
-            int bestCol = -1;
-            int bestValue = int.MinValue;
+            int optimalColumn = -1;
+            int highestScore = int.MinValue;
 
+            // Iterate through each column to find the best move
             for (int col = 0; col < ConnectFourBoard.Columns; col++)
             {
-                if (board.MakeMove(col, 2)) // 2 represents AI
+                // Simulate a move and run Minimax
+                if (gameBoard.MakeMove(col, 2)) // AI is player 2
                 {
-                    int moveValue = Minimax(0, int.MinValue, int.MaxValue, false);
-                    board.UndoMove(col);
+                    int score = RunMinimax(0, int.MinValue, int.MaxValue, false);
+                    gameBoard.UndoMove(col); // Undo the simulated move
 
-                    if (moveValue > bestValue)
+                    // Update the best move if a higher score is found
+                    if (score > highestScore)
                     {
-                        bestValue = moveValue;
-                        bestCol = col;
+                        highestScore = score;
+                        optimalColumn = col;
                     }
                 }
             }
 
-            return bestCol;
+            return optimalColumn;
         }
 
-        private int Minimax(int depth, int alpha, int beta, bool isMaximizingPlayer)
+        // Minimax algorithm with Alpha-Beta pruning for optimal decision making
+        private int RunMinimax(int depth, int alpha, int beta, bool maximizingPlayer)
         {
-            if (depth == 0 || board.CheckWinner(1) || board.CheckWinner(2)) // Assume 1 is player, 2 is AI
+            // Check for terminal conditions: maximum depth or a player has won
+            if (depth == searchDepth || gameBoard.CheckWinner(1) || gameBoard.CheckWinner(2))
             {
-                return EvaluateBoard();
+                return BoardEvaluation();
             }
 
-            if (isMaximizingPlayer)
+            // Maximizing player (AI)
+            if (maximizingPlayer)
             {
-                int maxEval = int.MinValue;
+                int bestEval = int.MinValue;
                 for (int col = 0; col < ConnectFourBoard.Columns; col++)
                 {
-                    if (board.MakeMove(col, 2)) // Trying a move as AI
+                    if (gameBoard.MakeMove(col, 2))// AI Move
                     {
-                        int eval = Minimax(depth - 1, alpha, beta, false);
-                        board.UndoMove(col);
-                        maxEval = Math.Max(maxEval, eval);
+                        int eval = RunMinimax(depth + 1, alpha, beta, false);
+                        gameBoard.UndoMove(col);
+                        bestEval = Math.Max(bestEval, eval);
                         alpha = Math.Max(alpha, eval);
                         if (beta <= alpha)
-                            break; // Alpha-Beta Pruning
+                            break; // Alpha-Beta pruning
                     }
                 }
-                return maxEval;
+                return bestEval;
             }
-            else
+            else // Minimizing player (Opponent)
             {
-                int minEval = int.MaxValue;
+                int worstEval = int.MaxValue;
                 for (int col = 0; col < ConnectFourBoard.Columns; col++)
                 {
-                    if (board.MakeMove(col, 1)) // Trying a move as Player
+                    if (gameBoard.MakeMove(col, 1))// Player Move
                     {
-                        int eval = Minimax(depth - 1, alpha, beta, true);
-                        board.UndoMove(col);
-                        minEval = Math.Min(minEval, eval);
+                        int eval = RunMinimax(depth + 1, alpha, beta, true);
+                        gameBoard.UndoMove(col);
+                        worstEval = Math.Min(worstEval, eval);
                         beta = Math.Min(beta, eval);
                         if (beta <= alpha)
-                            break; // Alpha-Beta Pruning
+                            break; // Alpha-Beta pruning
                     }
                 }
-                return minEval;
+                return worstEval;
             }
-
         }
-        private int EvaluateBoard()
+
+        // Evaluates the board and returns a score representing the state's favorability
+        private int BoardEvaluation()
         {
-            int score = 0;
+            int boardScore = 0;
+            int[,] currentLayout = gameBoard.GetBoard();
 
-            // Example: Scoring based on consecutive discs in rows, columns, and diagonals
-            // You can assign different weights for 2, 3, or 4-in-a-line scenarios.
-            // For instance: 3-in-a-line is more valuable than 2-in-a-line.
-
-            for (int row = 0; row < ConnectFourBoard.Rows; row++)
+            // Center column preference and scoring for potential lines
+            int centerColumn = ConnectFourBoard.Columns / 2;
+            for (int r = 0; r < ConnectFourBoard.Rows; r++)
             {
-                for (int col = 0; col < ConnectFourBoard.Columns; col++)
+                // Scoring based on center control and potential winning lines
+                if (currentLayout[r, centerColumn] == 2) boardScore += 5; // AI control
+                else if (currentLayout[r, centerColumn] == 1) boardScore -= 5; // Opponent control
+
+                for (int c = 0; c < ConnectFourBoard.Columns; c++)
                 {
-                    if (board[row, col] != 0) // If the cell is not empty
+                    if (currentLayout[r, c] != 0)
                     {
-                        // Check horizontally
-                        if (col + 3 < ConnectFourBoard.Columns)
-                        {
-                            score += EvaluateLine(row, col, 0, 1, board[row, col]);
-                        }
-                        // Check vertically (if applicable)
-                        if (row + 3 < ConnectFourBoard.Rows)
-                        {
-                            score += EvaluateLine(row, col, 1, 0, board[row, col]);
-                        }
-                        // Check diagonally (down-right and up-right)
-                        if (row + 3 < ConnectFourBoard.Rows && col + 3 < ConnectFourBoard.Columns)
-                        {
-                            score += EvaluateLine(row, col, 1, 1, board[row, col]);
-                        }
-                        if (row - 3 >= 0 && col + 3 < ConnectFourBoard.Columns)
-                        {
-                            score += EvaluateLine(row, col, -1, 1, board[row, col]);
-                        }
+                        // Check and score potential lines for both players
+                        boardScore += CheckLinePotential(currentLayout, r, c, 1, 0, currentLayout[r, c]); // Vertical
+                        boardScore += CheckLinePotential(currentLayout, r, c, 0, 1, currentLayout[r, c]); // Horizontal
+                        boardScore += CheckLinePotential(currentLayout, r, c, 1, 1, currentLayout[r, c]); // Diagonal right
+                        boardScore += CheckLinePotential(currentLayout, r, c, 1, -1, currentLayout[r, c]); // Diagonal left
                     }
                 }
             }
 
-            return score;
+            return boardScore;
         }
 
-        private int EvaluateLine(int row, int col, int deltaRow, int deltaCol, int player)
+        // Evaluates the potential of a line (horizontal, vertical, diagonal) for scoring
+        private int CheckLinePotential(int[,] layout, int row, int col, int dRow, int dCol, int player)
         {
+            int lineScore = 0;
+            int count = 0;
 
-            int score = 0;
-            int consecutive = 0;
-
+            // Check up to 4 cells in a specified direction for a potential line
             for (int i = 0; i < 4; i++)
             {
-                if (board[row + i * deltaRow, col + i * deltaCol] == player)
-                {
-                    consecutive++;
-                }
-                else if (board[row + i * deltaRow, col + i * deltaCol] != 0)
-                {
-                    consecutive = 0;
+                if (row >= ConnectFourBoard.Rows || col >= ConnectFourBoard.Columns || row < 0 || col < 0)
                     break;
-                }
+
+                if (layout[row, col] == player) count++;
+                else if (layout[row, col] != 0) break; // Line blocked by opponent
+
+                row += dRow;
+                col += dCol;
             }
 
-            if (consecutive > 0)
-            {
-                score = (int)Math.Pow(10, consecutive - 1); // Example: 10 points for 2-in-a-line, 100 for 3-in-a-line
-            }
+            if (count > 0) lineScore = (int)Math.Pow(5, count - 1); // Score based on number of consecutive discs
 
-            return player == 2 ? score : -score; // AI is player 2; invert score if it's the player's line
+            return lineScore * (player == 2 ? 1 : -1); // Adjust score based on the player
         }
-
     }
 }
-
